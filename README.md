@@ -1,227 +1,69 @@
-# serverlessDotNetStarter ![.NET 6](https://github.com/pharindoko/serverlessDotNetStarter/workflows/.NET%20Core/badge.svg?branch=master)
+# ASP.NET Core Web API Serverless Application
 
-Starter template for serverless framework with following scope:
+This project shows how to run an ASP.NET Core Web API project as an AWS Lambda exposed through Amazon API Gateway. The NuGet package [Amazon.Lambda.AspNetCoreServer](https://www.nuget.org/packages/Amazon.Lambda.AspNetCoreServer) contains a Lambda function that is used to translate requests from API Gateway into the ASP.NET Core framework and then the responses from ASP.NET Core back to API Gateway.
 
-- deploy C# / NET 6 solution in **AWS cloud** using:
-  - Lambda
-  - Api Gateway
-- debug and test solution locally in **Visual Studio Code**
-- works operating system independent
 
-## Prerequisites to install
+For more information about how the Amazon.Lambda.AspNetCoreServer package works and how to extend its behavior view its [README](https://github.com/aws/aws-lambda-dotnet/blob/master/Libraries/src/Amazon.Lambda.AspNetCoreServer/README.md) file in GitHub.
 
-- [NodeJS](https://nodejs.org/en/)
-- [Serverless Framework CLI](https://serverless.com)
-- [.NET Core 6](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
-- [AWS-Lambda-DotNet](https://github.com/aws/aws-lambda-dotnet)
-- [Visual Studio Code](https://code.visualstudio.com/)
-- [C# Extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp)
 
-Verify that everything is installed (copy & paste)
+### Configuring for API Gateway HTTP API ###
 
-```bash
-# package manager for nodejs
-npm -v
-# serverless framework cli > 1.5
-sls -v
-# dotnet (cli) > 6.0
-dotnet --version
+API Gateway supports the original REST API and the new HTTP API. In addition HTTP API supports 2 different
+payload formats. When using the 2.0 format the base class of `LambdaEntryPoint` must be `Amazon.Lambda.AspNetCoreServer.APIGatewayHttpApiV2ProxyFunction`.
+For the 1.0 payload format the base class is the same as REST API which is `Amazon.Lambda.AspNetCoreServer.APIGatewayProxyFunction`.
+**Note:** when using the `AWS::Serverless::Function` CloudFormation resource with an event type of `HttpApi` the default payload
+format is 2.0 so the base class of `LambdaEntryPoint` must be `Amazon.Lambda.AspNetCoreServer.APIGatewayHttpApiV2ProxyFunction`.
+
+
+### Configuring for Application Load Balancer ###
+
+To configure this project to handle requests from an Application Load Balancer instead of API Gateway change
+the base class of `LambdaEntryPoint` from `Amazon.Lambda.AspNetCoreServer.APIGatewayProxyFunction` to 
+`Amazon.Lambda.AspNetCoreServer.ApplicationLoadBalancerFunction`.
+
+### Project Files ###
+
+* serverless.template - an AWS CloudFormation Serverless Application Model template file for declaring your Serverless functions and other AWS resources
+* aws-lambda-tools-defaults.json - default argument settings for use with Visual Studio and command line deployment tools for AWS
+* LambdaEntryPoint.cs - class that derives from **Amazon.Lambda.AspNetCoreServer.APIGatewayProxyFunction**. The code in 
+this file bootstraps the ASP.NET Core hosting framework. The Lambda function is defined in the base class.
+Change the base class to **Amazon.Lambda.AspNetCoreServer.ApplicationLoadBalancerFunction** when using an 
+Application Load Balancer.
+* LocalEntryPoint.cs - for local development this contains the executable Main function which bootstraps the ASP.NET Core hosting framework with Kestrel, as for typical ASP.NET Core applications.
+* Startup.cs - usual ASP.NET Core Startup class used to configure the services ASP.NET Core will use.
+* appsettings.json - used for local development.
+* Controllers\ValuesController - example Web API controller
+
+You may also have a test project depending on the options selected.
+
+## Here are some steps to follow from Visual Studio:
+
+To deploy your Serverless application, right click the project in Solution Explorer and select *Publish to AWS Lambda*.
+
+To view your deployed application open the Stack View window by double-clicking the stack name shown beneath the AWS CloudFormation node in the AWS Explorer tree. The Stack View also displays the root URL to your published application.
+
+## Here are some steps to follow to get started from the command line:
+
+Once you have edited your template and code you can deploy your application using the [Amazon.Lambda.Tools Global Tool](https://github.com/aws/aws-extensions-for-dotnet-cli#aws-lambda-amazonlambdatools) from the command line.
+
+Install Amazon.Lambda.Tools Global Tools if not already installed.
+```
+    dotnet tool install -g Amazon.Lambda.Tools
 ```
 
-## Installation (copy & paste)
-
-```bash
-# clone solution
-# serverless create --template-url https://github.com/pharindoko/serverlessDotNetStarter --path {SERVICE_NAME}
-serverless create --template-url https://github.com/pharindoko/serverlessDotNetStarter --path serverlessDotnetstarter
-cd serverlessDotNetStarter
-# restore / install dotnet references described in csproj file
-dotnet restore AwsDotnetCsharp.csproj
-
-# install Lambda NET Mock Test Tool and Amazon Lambda Tools
-# more details: https://github.com/aws/aws-lambda-dotnet/tree/master/Tools/LambdaTestTool
-
-dotnet tool install -g Amazon.Lambda.Tools
-dotnet tool install --global Amazon.Lambda.TestTool-6.0
-dotnet tool list -g
-
-# expected dotnet packages:
-#
-# Package Id                      Version      Commands
-------------------------------------------------------------------------
-#amazon.lambda.testtool-6.0      0.12.4       dotnet-lambda-test-tool-6.0
-#amazon.lambda.tools             5.4.5        dotnet-lambda
+If already installed check if new version is available.
+```
+    dotnet tool update -g Amazon.Lambda.Tools
 ```
 
-**For VS Code Debugging:**
-
-> ```bash
-> code --install-extension ms-dotnettools.csharp --force
-> ```
-
-## Debug & Test locally
-
-I followed this guideline: (Please read in case of issues)
-
-[How to Debug .NET Core Lambda Functions Locally with the Serverless Framework](https://itnext.io/how-to-debug-net-core-lambda-functions-locally-with-the-serverless-framework-dd1670bc22e2)
-
-#### 1. Open Visual Studio Code
-
-```bash
-# open Visual Studio Code
-code .
+Execute unit tests
+```
+    cd "DemoServerless/test/DemoServerless.Tests"
+    dotnet test
 ```
 
-#### 2. Setup Amazon Lambda Testtool
-
-Edit the "program" property in .vscode/launch.json file and update placeholder for {user} (placeholders marked in bold)
-
-##### For Windows
-
-<pre><code>
-"program": /Users/<b>{user}</b>/.dotnet/tools/dotnet-lambda-test-tool-6.0
-</pre></code>
-
-##### For MacOs / Linux
-
-<pre><code>
-"program": /Users/<b>{user}</b>/.dotnet/tools/dotnet-lambda-test-tool-6.0
-</pre></code>
-
-More information:
-
-- <https://github.com/aws/aws-lambda-dotnet/tree/master/Tools/LambdaTestTool#configure-for-visual-studio-code>,
-- <https://github.com/aws/aws-lambda-dotnet/tree/master/Tools/LambdaTestTool#configure-for-visual-studio-for-mac>
-
-In case of issues - try this:
-
-<pre><code>
-  "program": /Users/<b>{user}</b>/.dotnet/tools/.store/amazon.lambda.testtool-6.0/<b>{nuget-version}</b>/amazon.lambda.testtool-6.0/<b>{nuget-version}</b>/tools/net6.0/any/Amazon.Lambda.TestTool.WebTester6.0.dll",
-</pre></code>
-
-> **how to get the right nuget version ?**
-
-  <pre><code>
-   dotnet tool list -g
-
-   Result:
-    Package Id                      Version                   Commands
-    ------------------------------------------------------------------------
-    amazon.lambda.testtool-6.0      <b>e.g. version 0.12.4</b>       dotnet-lambda-test-tool-6.0
-  </pre></code>
-
-#### 3. Press **F5** to start the debugging and local testing of lambda function
-
-- Hint: Lambda Mock Test Tool should be started locally on port 5050
-- Click on Button "Execute Function"
-
-![Image description](resources/images/lambda_test_tool.png)
-
-> you should get hello world as a result.
-
-#### Test Another Example: getquerystring
-
-1. Select function to **getquerystring** (upper right dropdownlist)
-2. Insert this json value in the function input textbox for a first test:
-
-    ```json
-    {
-      "httpMethod": "GET",
-      "queryStringParameters": {
-        "foo": "dfgdfg",
-        "woot": "food"
-      }
-    }
-    ```
-
-> **Mind:** For a successful response querystringParameter **foo** must be inserted
-
-## Build Package
-
-Mac OS or Linux
-
-```bash
-./build.sh
+Deploy application
 ```
-
-Windows
-
-```bash
-build.cmd
+    cd "DemoServerless/src/DemoServerless"
+    dotnet lambda deploy-serverless
 ```
-
-## Deploy via Serverless Framework
-
-```bash
-serverless deploy
-```
-
-A cloudformation stack in AWS will be created in background containing all needed resources
-
-#### After successful deployment you can see following output
-
-<pre>
-Service Information
-service: myService
-stage: dev
-region: <b>us-east-1</b>
-stack: myService-dev
-resources: 10
-api keys:
-  None
-endpoints:
-  GET - <b>endpointUrl --> https://{api}.execute-api.us-east-1.amazonaws.com/dev/hello</b>
-functions:
-  hello: myService-dev-hello
-layers:
-  None
-
-</pre>
-
-## Test endpoint after deployment
-
-2 simple options:
-
-- [Use postman as UI Tool](https://www.getpostman.com/)
-- Use curl
-
-Use the **endpointUrl** from up above.
-
-```bash
-curl https://{api}.execute-api.us-east-1.amazonaws.com/dev/hello
-curl https://{api}.execute-api.us-east-1.amazonaws.com/dev/getquerystring?foo=test
-```
-
-**Mind:** For a successful response of function getquerystring the querystringParameter **foo** must be inserted
-
-## FAQ
-
-###### Can I use the solution with Visual Studio IDE (2017 or 2019)
-
-1. Yes. [Here`s the guideline.](https://github.com/aws/aws-lambda-dotnet/tree/master/Tools/LambdaTestTool#configure-for-visual-studio)
-
-###### How to add an api key
-
-1. Setup API Key in serverless.yml file
-   <https://serverless.com/framework/docs/providers/aws/events/apigateway/#setting-api-keys-for-your-rest-api>
-
-###### How to add additional lambda functions
-
-1. Create a new C# Function in Handler.cs or use another file
-2. Add a new function to serverless.yml and reference the C# Function as handler
-   <https://serverless.com/framework/docs/providers/aws/guide/functions/>
-
-###### Destroy the stack in the cloud
-
-```bash
-sls remove
-```
-
-###### I deployed the solution but I get back a http 500 error
-
-1. Check Cloudwatch Logs in AWS - the issue should be describe there.
-2. For a successful response of function getquerystring the querystringParameter **foo** must be inserted
-
-###### How can I change the lambda region or stack name
-
-Please have a look to the serverless guideline: <https://serverless.com/framework/docs/providers/aws/guide/deploying/>
